@@ -1,5 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, status, Body
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Query, status, Body, Path
 from typing import Annotated, Optional
 from contextlib import asynccontextmanager
 from random import randint
@@ -19,7 +18,7 @@ expenses = []
 
 
 # Create
-@app.post("/expense")
+@app.post("/expense", status_code=status.HTTP_201_CREATED)
 def create_expense(
     description: str = Query(..., description="Description of the expense"),
     amount: float = Query(..., gt=0, description="Amount of the expense"),
@@ -30,14 +29,11 @@ def create_expense(
         "amount": round(amount, 2),
     }
     expenses.append(expense)
-    return JSONResponse(
-        content={"message": "Expense created successfully!", "data": expense},
-        status_code=status.HTTP_201_CREATED,
-    )
+    return {"message": "Expense added successfully!", "data": expense}
 
 
 # Retrieve
-@app.get("/expenses")
+@app.get("/expenses", status_code=status.HTTP_200_OK)
 def get_expenses(
     expense_id: Annotated[
         int | None,
@@ -54,54 +50,64 @@ def get_expenses(
     if expense_id is not None:
         for expense in expenses:
             if expense_id == expense["id"]:
-                return JSONResponse(
-                    {
-                        "message": f"Expense with ID {expense_id} found.",
-                        "data": expense,
-                    },
-                    status_code=status.HTTP_200_OK,
-                )
+                return {
+                    "message": f"Expense with ID {expense_id} retrieved successfully.",
+                    "data": expense,
+                }
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found!"
         )
-    return JSONResponse(
-        {"message": "All expenses retrieved successfully.", "data": expenses},
-        status_code=status.HTTP_200_OK,
-    )
+    return {"message": "All expenses retrieved.", "data": expenses}
 
 
 # Update
-@app.put("/expenses")
+@app.put("/expenses/{expense_id}", status_code=status.HTTP_200_OK)
 def update_expense(
-    expense_id: int = Query(
+    expense_id: int = Path(
         ge=111111,
         le=999999,
         description="""The ID of the expense to update.
             Must be between 111111 and 999999.
             """,
     ),
-    description: Optional[str | None] = Body(
-        ..., description="Description of the expense", embed=True
+    description: Optional[str] = Body(
+        None, description="New description of the expense", embed=True
     ),
-    amount: Optional[float | None] = Body(
-        ..., gt=0, description="Amount of the expense", embed=True
+    amount: Optional[float] = Body(
+        None, gt=0, description="New amount of the expense", embed=True
     ),
+):
+    for expense in expenses:
+        if expense_id == expense["id"]:
+            if description is not None:
+                expense["description"] = description
+            if amount is not None:
+                expense["amount"] = round(amount, 2)
+            return {
+                "message": f"Expense with ID {expense_id} updated successfully.",
+                "data": expense,
+            }
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found!"
+    )
+
+
+# Delete
+@app.delete("/expense/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_expense(
+    expense_id: int = Path(
+        ge=111111,
+        le=999999,
+        description="""The ID of the expense to delete.
+            Must be between 111111 and 999999.
+            """,
+    )
 ):
     if expense_id is not None:
         for expense in expenses:
             if expense_id == expense["id"]:
-                expense["description"] = description
-                expense["amount"] = amount
-                return JSONResponse(
-                    {
-                        "message": f"Expense with ID {expense_id} updated.",
-                        "data": expense,
-                    },
-                    status_code=status.HTTP_200_OK,
-                )
+                expenses.remove(expense)
+                return
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found!"
         )
-
-
-# Delete
