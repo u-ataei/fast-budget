@@ -14,28 +14,28 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-expenses = []
+expense_records = []
 
 
 # Create
 @app.post("/expense", status_code=status.HTTP_201_CREATED)
-def create_expense(
-    description: str = Query(..., description="Description of the expense"),
-    amount: float = Query(..., gt=0, description="Amount of the expense"),
+def add_expense(
+    expense_desc: str = Query(..., description="Description of the expense"),
+    expense_amt: float = Query(..., gt=0, description="Amount of the expense"),
 ):
-    expense = {
-        "id": randint(111111, 999999),
-        "description": description,
-        "amount": round(amount, 2),
+    new_expense = {
+        "expense_id": randint(111111, 999999),
+        "expense_desc": expense_desc,
+        "expense_amt": round(expense_amt, 2),
     }
-    expenses.append(expense)
-    return {"message": "Expense added successfully!", "data": expense}
+    expense_records.append(new_expense)
+    return {"message": "Expense added successfully!", "data": new_expense}
 
 
 # Retrieve
 @app.get("/expenses", status_code=status.HTTP_200_OK)
-def get_expenses(
-    expense_id: Annotated[
+def fetch_expenses(
+    search_id: Annotated[
         int | None,
         Query(
             ge=111111,
@@ -47,22 +47,22 @@ def get_expenses(
         ),
     ] = None,
 ):
-    if expense_id is not None:
-        for expense in expenses:
-            if expense_id == expense["id"]:
+    if search_id is not None:
+        for record in expense_records:
+            if search_id == record["expense_id"]:
                 return {
-                    "message": f"Expense with ID {expense_id} retrieved successfully.",
-                    "data": expense,
+                    "message": f"Expense with ID {search_id} retrieved successfully.",
+                    "data": record,
                 }
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found!"
         )
-    return {"message": "All expenses retrieved.", "data": expenses}
+    return {"message": "All expenses retrieved.", "data": expense_records}
 
 
 # Update
 @app.put("/expenses/{expense_id}", status_code=status.HTTP_200_OK)
-def update_expense(
+def modify_expense(
     expense_id: int = Path(
         ge=111111,
         le=999999,
@@ -70,22 +70,22 @@ def update_expense(
             Must be between 111111 and 999999.
             """,
     ),
-    description: Optional[str] = Body(
+    new_desc: Optional[str] = Body(
         None, description="New description of the expense", embed=True
     ),
-    amount: Optional[float] = Body(
+    new_amt: Optional[float] = Body(
         None, gt=0, description="New amount of the expense", embed=True
     ),
 ):
-    for expense in expenses:
-        if expense_id == expense["id"]:
-            if description is not None:
-                expense["description"] = description
-            if amount is not None:
-                expense["amount"] = round(amount, 2)
+    for record in expense_records:
+        if expense_id == record["expense_id"]:
+            if new_desc is not None:
+                record["expense_desc"] = new_desc
+            if new_amt is not None:
+                record["expense_amt"] = round(new_amt, 2)
             return {
                 "message": f"Expense with ID {expense_id} updated successfully.",
-                "data": expense,
+                "data": record,
             }
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found!"
@@ -94,7 +94,7 @@ def update_expense(
 
 # Delete
 @app.delete("/expense/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_expense(
+def remove_expense(
     expense_id: int = Path(
         ge=111111,
         le=999999,
@@ -104,9 +104,9 @@ def delete_expense(
     )
 ):
     if expense_id is not None:
-        for expense in expenses:
-            if expense_id == expense["id"]:
-                expenses.remove(expense)
+        for record in expense_records:
+            if expense_id == record["expense_id"]:
+                expense_records.remove(record)
                 return
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found!"
