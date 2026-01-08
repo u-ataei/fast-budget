@@ -37,6 +37,17 @@ def create_expense(
 
 
 # Retrieve
+@app.get("/expenses")
+def get_expenses(expense_id: Annotated[int | None, Query(ge=111111, le=999999)] = None):
+    if expense_id is not None:
+        for expense in expenses:
+            if expense_id == expense["id"]:
+                return expense
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found!"
+        )
+    return expenses
+
 
 # Update
 
